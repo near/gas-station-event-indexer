@@ -2,8 +2,45 @@ import asyncio
 import json
 import os
 import requests
+import toml
 
 from near_lake_framework import near_primitives, LakeConfig, streamer
+
+# load the config
+with open('config.toml', 'r') as file:
+    config = toml.load(file)
+    expected_config_keys = ["network", "contract_id"]
+    has_all_necessary_config_keys = all(exp_key in config for exp_key in expected_config_keys)
+    if not has_all_necessary_config_keys:
+        raise ValueError(f"Missing keys in config.toml: {expected_config_keys}")
+
+
+def fetch_latest_block(network: str = 'mainnet'):
+    # Define the RPC endpoint for the NEAR network
+    url = "https://rpc.mainnet.near.org" if network == 'mainnet' else "https://rpc.testnet.near.org"
+
+    # Define the payload for fetching the latest block
+    payload = json.dumps({
+        "jsonrpc": "2.0",
+        "id": "dontcare",
+        "method": "block",
+        "params": {
+            "finality": "final"
+        }
+    })
+
+    # Define the headers for the HTTP request
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    # Send the HTTP request to the NEAR RPC endpoint
+    response = requests.request("POST", url, headers=headers, data=payload)
+
+    # Parse the JSON response to get the latest final block height
+    latest_final_block = response.json()["result"]["header"]["height"]
+
+    return latest_final_block
 
 
 # Event format json example:
@@ -22,9 +59,9 @@ from near_lake_framework import near_primitives, LakeConfig, streamer
 # }
 
 def valdiate_event_data(event_data: dict) -> bool:
-    expected_keys = ["foreign_chain_id", "signed_transactions"]
-    has_all_necessary_keys = all(exp_key in event_data for exp_key in expected_keys)
-    return has_all_necessary_keys and len(event_data.get("signed_transactions", [])) == 2
+    expected_event_keys = ["foreign_chain_id", "signed_transactions"]
+    has_all_necessary_event_keys = all(exp_key in event_data for exp_key in expected_event_keys)
+    return has_all_necessary_event_keys and len(event_data.get("signed_transactions", [])) == 2
 
 
 async def handle_streamer_message(streamer_message: near_primitives.StreamerMessage):
@@ -51,8 +88,8 @@ async def handle_streamer_message(streamer_message: near_primitives.StreamerMess
                     print(json.dumps(parsed_log, indent=4))
 
                 if receipt_execution_outcome.receipt.receiver_id.endswith(
-                        "canhazgas.testnet"
-                ):  # TODO load addresses from config
+                        config.get("contract_id")
+                ):  # gas station contract account id
                     try:
                         parsed_event_data = json.loads(parsed_log["data"])
                         if not valdiate_event_data(parsed_event_data):
@@ -80,13 +117,21 @@ async def handle_streamer_message(streamer_message: near_primitives.StreamerMess
 
 
 async def main():
-    # TODO change this to the latest block height and mainnet/testnet from config
-    config = LakeConfig.testnet()
-    config.start_block_height = 157263285
-    config.aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
-    config.aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+    if config.get("network") == "mainnet":
+        lake_config = LakeConfig.mainnet()
+        latest_final_block = fetch_latest_block(network='mainnet')
+    elif config.get("network") == "testnet":
+        lake_config = LakeConfig.testnet()
+        latest_final_block = fetch_latest_block(network='testnet')
+    else:
+        raise ValueError(f"Unknown network: {config.get('network')}")
 
-    stream_handle, streamer_messages_queue = streamer(config)
+    print(f"Latest final block: {latest_final_block} on network: {config.get('network')}")
+    lake_config.start_block_height = latest_final_block
+    lake_config.aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
+    lake_config.aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+
+    stream_handle, streamer_messages_queue = streamer(lake_config)
     while True:
         streamer_message = await streamer_messages_queue.get()
         await handle_streamer_message(streamer_message)
