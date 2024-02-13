@@ -1,0 +1,3 @@
+network = "testnet"
+# gas station contract account id
+contract_id = "canhazgas.testnet"

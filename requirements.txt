@@ -1,2 +1,4 @@
 asyncio==3.4.3
 near-lake-framework==0.0.7
+requests==2.31.0
+toml==0.10.2
