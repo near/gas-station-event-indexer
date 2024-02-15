@@ -91,18 +91,22 @@ async def handle_streamer_message(streamer_message: near_primitives.StreamerMess
                         config.get("contract_id")
                 ):  # gas station contract account id
                     try:
-                        parsed_event_data = json.loads(parsed_log["data"])
+                        parsed_event_data: dict = parsed_log["data"]
                         if not valdiate_event_data(parsed_event_data):
-                            print(f"Invalid event data: {parsed_event_data}")
+                            print(f"Error: Invalid event data: {parsed_event_data}")
                         else:
                             payload = {
                                 "foreign_chain_id": parsed_event_data["foreign_chain_id"],
                                 "raw_transactions": parsed_event_data["signed_transactions"],
                             }
-                            requests.post(
+                            response = requests.post(
                                 url="localhost:3030/send_funding_and_user_signed_txns",
                                 json=payload,
                             )
+                            if response.status_code not in {200, 201}:
+                                print(f"Error: calling localhost:3030/send_funding_and_user_signed_txns: {response.text}")
+                            else:
+                                print(f"Response from localhost:3030/send_funding_and_user_signed_txns: {response.text}")
                     except json.JSONDecodeError:
                         print(
                             f"Receipt ID: `{receipt_execution_outcome.receipt.receipt_id}`\n"
