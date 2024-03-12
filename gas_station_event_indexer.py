@@ -97,7 +97,7 @@ async def handle_streamer_message(streamer_message: near_primitives.StreamerMess
                         else:
                             payload = {
                                 "foreign_chain_id": parsed_event_data["foreign_chain_id"],
-                                "raw_transactions": parsed_event_data["signed_transactions"],
+                                "signed_transactions": parsed_event_data["signed_transactions"],
                             }
                             response = requests.post(
                                 url="localhost:3030/send_funding_and_user_signed_txns",
