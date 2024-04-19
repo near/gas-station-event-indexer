@@ -22,7 +22,7 @@ clean:
 	find . -type d -name '__pycache__' -delete
 
 ## run: gas station event indexer
-run: install
+run:
 	@$(PYTHON) gas_station_event_indexer.py
 
 help:
