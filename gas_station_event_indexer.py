@@ -24,11 +24,7 @@ def fetch_latest_block(network: str = "mainnet"):
     """
     Define the RPC endpoint for the NEAR network
     """
-    url = (
-        "https://rpc.mainnet.near.org"
-        if network == "mainnet"
-        else "https://rpc.testnet.near.org"
-    )
+    url = f"https://rpc.{network}.near.org"
 
     # Define the payload for fetching the latest block
     payload = json.dumps(
@@ -70,7 +66,7 @@ def fetch_latest_block(network: str = "mainnet"):
 # }
 
 
-def validate_event_data(event_data: dict) -> bool:
+def validate_event_data(event_data: dict[str, str]) -> bool:
     expected_event_keys = ["foreign_chain_id", "signed_transactions"]
     has_all_necessary_event_keys = all(
         exp_key in event_data for exp_key in expected_event_keys
@@ -145,7 +141,8 @@ def process_receipt_if_gas_station_contract(
 
     except json.JSONDecodeError:
         print(
-            f"Receipt ID: `{receipt.receipt_id}`\nError during parsing event data from JSON string to dict"
+            f"Receipt ID: `{receipt.receipt_id}`\n"
+            "Error during parsing event data from JSON string to dict"
         )
         return False
 
@@ -169,6 +166,7 @@ def send_event_data_to_service(event_data: dict):
 async def handle_streamer_message(streamer_message: near_primitives.StreamerMessage):
     for shard in streamer_message.shards:
         process_shard(shard)
+
 
 async def main() -> None:
     if config.get("network") == "mainnet":
