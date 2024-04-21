@@ -169,50 +169,6 @@ def send_event_data_to_service(event_data: dict):
 async def handle_streamer_message(streamer_message: near_primitives.StreamerMessage):
     for shard in streamer_message.shards:
         process_shard(shard)
-    # for shard in streamer_message.shards:
-    #     for receipt_execution_outcome in shard.receipt_execution_outcomes:
-    #         for log in receipt_execution_outcome.execution_outcome.outcome.logs:
-    #             receipt = receipt_execution_outcome.receipt
-
-    #             parsed_log = extract_relevant_log(log, receipt.receipt_id)
-    #             if parsed_log is None:
-    #                 continue
-
-    #             print(json.dumps(parsed_log, indent=4))
-
-    #             # gas station contract account id
-    #             if receipt.receiver_id.endswith(config.get("contract_id")):
-    #                 try:
-    #                     parsed_event_data: dict = parsed_log["data"]
-    #                     if not valdiate_event_data(parsed_event_data):
-    #                         print(f"Error: Invalid event data: {parsed_event_data}")
-    #                     else:
-    #                         payload = {
-    #                             "foreign_chain_id": parsed_event_data["foreign_chain_id"],
-    #                             "signed_transactions": parsed_event_data["signed_transactions"],
-    #                         }
-    #                         url = "localhost:3030/send_funding_and_user_signed_txns"
-    #                         response = requests.post(
-    #                             url,
-    #                             json=payload,
-    #                             timeout=REQUEST_TIMEOUT,
-    #                         )
-    #                         if response.status_code not in {200, 201}:
-    #                             print(f"Error: calling {url}: {response.text}")
-    #                         else:
-    #                             print(f"Response from {url}: {response.text}")
-    #                 except json.JSONDecodeError:
-    #                     print(
-    #                         f"Receipt ID: `{receipt.receipt_id}`\n"
-    #                         f"Error during parsing event data from JSON string to dict"
-    #                     )
-    #                     continue
-
-    #             else:
-    #                 continue
-
-    #             print(json.dumps(parsed_event_data, indent=4))
-
 
 async def main() -> None:
     if config.get("network") == "mainnet":

@@ -20,8 +20,3 @@ jobs:
           black --check ./
           pylint gas_station_event_indexer.py
           mypy --ignore-missing-imports gas_station_event_indexer.py
-      
-      # TODO - add unit tests.
-      # - name: Unit Tests
-      #   run:
-      #     python -m pytest tests
