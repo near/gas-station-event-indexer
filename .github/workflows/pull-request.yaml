@@ -1,0 +1,22 @@
+name: pull request
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Requirements
+        run:
+          pip install -r requirements.txt
+      - name: Format Lint & Types
+        run: |
+          black --check ./
+          pylint gas_station_event_indexer.py
+          mypy --ignore-missing-imports gas_station_event_indexer.py
