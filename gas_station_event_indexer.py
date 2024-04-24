@@ -1,26 +1,107 @@
+from __future__ import annotations
+
 import asyncio
 import json
 import os
-from typing import Optional
+from dataclasses import dataclass, fields
+from enum import Enum
+from typing import Optional, Any
+
 import requests
 import toml
-
+from dataclasses_json import DataClassJsonMixin
 from near_lake_framework import near_primitives, LakeConfig, streamer
 
 REQUEST_TIMEOUT = 10
-
-# load the config
-with open("config.toml", "r", encoding="utf-8") as file:
-    config = toml.load(file)
-    expected_config_keys = ["network", "contract_id"]
-    has_all_necessary_config_keys = all(
-        exp_key in config for exp_key in expected_config_keys
-    )
-    if not has_all_necessary_config_keys:
-        raise ValueError(f"Missing keys in config.toml: {expected_config_keys}")
+ParsedLog = dict[str, Any]
 
 
-def fetch_latest_block(network: str = "mainnet"):
+@dataclass
+class EventData(DataClassJsonMixin):
+    """
+    {
+      "foreign_chain_id": "97",
+      "sender_local_address": "hatchet.testnet",
+      "signed_transactions": [
+        "f862037882520894c5acb93d901fb260359cd1e982998236cfac65e0834ce7808002a02dfe84af26b45fec8704a6542e828428fcce018a4e266e19e087a55f1f73fff8a06cc72dc5ecc66c84e3b4f02513961235fff5f463ac68fd00f5072a6f64bfe4cc",
+        "f85f8078825208940505050505050505050505050505050505050505648003a033d5ef8c991ec82b9a6b38b7f7ca91ba34ec814c9eec1e2a42e4fc4fc9c443f7a0675e56a82d9464d1cba7ef62d7b9d6e1a4b87328c610b28dfc4b81815f8969d0"
+      ]
+    }
+    """
+
+    foreign_chain_id: str
+    sender_local_address: str
+    signed_transactions: list[str]
+
+    def validate(self) -> bool:
+        return len(self.signed_transactions) == 2
+
+    def send_to_service(self) -> None:
+        payload = {
+            "foreign_chain_id": self.foreign_chain_id,
+            "signed_transactions": self.signed_transactions,
+        }
+        url = "localhost:3030/send_funding_and_user_signed_txns"
+        try:
+            response = requests.post(url, json=payload, timeout=REQUEST_TIMEOUT)
+            if response.status_code not in {200, 201}:
+                print(f"Error: calling {url}: {response.text}")
+            else:
+                print(f"Response from {url}: {response.text}")
+        except requests.RequestException as e:
+            print(f"HTTP Request failed: {str(e)}")
+
+
+class Network(Enum):
+    """
+    Representing Near Lake Framework networks.
+    TODO - this Enum actually belongs in the `near_lake_framework.enums` module.
+    """
+
+    MAINNET = "mainnet"
+    TESTNET = "testnet"
+
+    @staticmethod
+    def from_string(value: str) -> Network:
+        try:
+            return Network(value.lower())
+        except ValueError as err:
+            valid_values = [v.value for v in Network]
+            raise ValueError(
+                f"Unknown network: {value}. Valid values are: {valid_values}"
+            ) from err
+
+    def __str__(self) -> str:
+        return self.value
+
+    def __repr__(self) -> str:
+        return self.value
+
+
+@dataclass
+class Config:
+    """
+    Runtime Configuration class
+    """
+
+    network: Network
+    contract_id: str
+
+    @staticmethod
+    def from_toml(config_path: str = "config.toml") -> Config:
+        config_dict = toml.load(config_path)
+        required_keys = {field.name for field in fields(Config)}
+        if not all(key in config_dict for key in required_keys):
+            missing_keys = required_keys - config_dict.keys()
+            raise ValueError(f"Missing keys in {config_path}: {missing_keys}")
+
+        config_dict["network"] = Network.from_string(config_dict["network"])
+        return Config(**config_dict)
+
+
+def fetch_latest_block(
+    network: Network = Network.MAINNET,
+) -> near_primitives.BlockHeight:
     """
     Define the RPC endpoint for the NEAR network
     """
@@ -66,25 +147,15 @@ def fetch_latest_block(network: str = "mainnet"):
 # }
 
 
-def validate_event_data(event_data: dict[str, str]) -> bool:
-    expected_event_keys = ["foreign_chain_id", "signed_transactions"]
-    has_all_necessary_event_keys = all(
-        exp_key in event_data for exp_key in expected_event_keys
-    )
-    return (
-        has_all_necessary_event_keys
-        and len(event_data.get("signed_transactions", [])) == 2
-    )
-
-
 def extract_relevant_log(
     log: str, receipt_id: near_primitives.CryptoHash
-) -> Optional[dict]:
-    if not log.startswith("EVENT_JSON:"):
+) -> Optional[ParsedLog]:
+    log_key = "EVENT_JSON:"
+    if not log.startswith(log_key):
         return None
 
     try:
-        parsed_log = json.loads(log[len("EVENT_JSON:") :])
+        parsed_log: ParsedLog = json.loads(log[len(log_key) :])
     except json.JSONDecodeError:
         print(
             f"Receipt ID: `{receipt_id}`\n"
@@ -100,21 +171,21 @@ def extract_relevant_log(
     return parsed_log
 
 
-def process_shard(shard: near_primitives.IndexerShard):
+def process_shard(shard: near_primitives.IndexerShard) -> None:
     for receipt_execution_outcome in shard.receipt_execution_outcomes:
         process_receipt_execution_outcome(receipt_execution_outcome)
 
 
 def process_receipt_execution_outcome(
     receipt_execution_outcome: near_primitives.IndexerExecutionOutcomeWithReceipt,
-):
+) -> None:
     for log in receipt_execution_outcome.execution_outcome.outcome.logs:
         receipt = receipt_execution_outcome.receipt
         if not process_log(log, receipt):
             continue
 
 
-def process_log(log: str, receipt: near_primitives.Receipt):
+def process_log(log: str, receipt: near_primitives.Receipt) -> bool:
     parsed_log = extract_relevant_log(log, receipt.receipt_id)
     if parsed_log is None:
         return False
@@ -124,19 +195,19 @@ def process_log(log: str, receipt: near_primitives.Receipt):
 
 
 def process_receipt_if_gas_station_contract(
-    receipt: near_primitives.Receipt, parsed_log: dict
+    receipt: near_primitives.Receipt, parsed_log: ParsedLog
 ) -> bool:
-    if not receipt.receiver_id.endswith(config.get("contract_id")):
+    if not receipt.receiver_id.endswith(config.contract_id):
         return False
 
     try:
-        parsed_event_data = parsed_log["data"]
-        if not validate_event_data(parsed_event_data):
-            print(f"Error: Invalid event data: {parsed_event_data}")
+        event_data = EventData.from_dict(parsed_log["data"])
+        if not event_data.validate():
+            print(f"Error: Invalid event data: {event_data}")
             return False
 
-        print(json.dumps(parsed_event_data, indent=4))
-        send_event_data_to_service(parsed_event_data)
+        print(json.dumps(event_data, indent=4))
+        event_data.send_to_service()
         return True
 
     except json.JSONDecodeError:
@@ -147,43 +218,24 @@ def process_receipt_if_gas_station_contract(
         return False
 
 
-def send_event_data_to_service(event_data: dict):
-    payload = {
-        "foreign_chain_id": event_data["foreign_chain_id"],
-        "signed_transactions": event_data["signed_transactions"],
-    }
-    url = "localhost:3030/send_funding_and_user_signed_txns"
-    try:
-        response = requests.post(url, json=payload, timeout=REQUEST_TIMEOUT)
-        if response.status_code not in {200, 201}:
-            print(f"Error: calling {url}: {response.text}")
-        else:
-            print(f"Response from {url}: {response.text}")
-    except requests.RequestException as e:
-        print(f"HTTP Request failed: {str(e)}")
-
-
-async def handle_streamer_message(streamer_message: near_primitives.StreamerMessage):
+async def handle_streamer_message(
+    streamer_message: near_primitives.StreamerMessage,
+) -> None:
     for shard in streamer_message.shards:
         process_shard(shard)
 
 
 async def main() -> None:
-    if config.get("network") == "mainnet":
-        lake_config = LakeConfig.mainnet()
-        latest_final_block = fetch_latest_block(network="mainnet")
-    elif config.get("network") == "testnet":
-        lake_config = LakeConfig.testnet()
-        latest_final_block = fetch_latest_block(network="testnet")
-    else:
-        raise ValueError(f"Unknown network: {config.get('network')}")
-
-    print(
-        f"Latest final block: {latest_final_block} on network: {config.get('network')}"
+    latest_final_block = fetch_latest_block(network=config.network)
+    lake_config = LakeConfig(
+        s3_bucket_name=f"near-lake-data-{config.network}",
+        s3_region_name="eu-central-1",
+        start_block_height=latest_final_block,
+        # These fields must be set!
+        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+        aws_secret_key=os.environ["AWS_SECRET_ACCESS_KEY"],
     )
-    lake_config.start_block_height = latest_final_block
-    lake_config.aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
-    lake_config.aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+    print(f"Latest final block: {latest_final_block} on network: {config.network}")
 
     _stream_handle, streamer_messages_queue = streamer(lake_config)
     while True:
@@ -191,5 +243,7 @@ async def main() -> None:
         await handle_streamer_message(streamer_message)
 
 
-loop = asyncio.new_event_loop()
-loop.run_until_complete(main())
+if __name__ == "__main__":
+    config = Config.from_toml()
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(main())

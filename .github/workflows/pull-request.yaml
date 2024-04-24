@@ -19,4 +19,4 @@ jobs:
         run: |
           black --check ./
           pylint gas_station_event_indexer.py
-          mypy --ignore-missing-imports gas_station_event_indexer.py
+          mypy --ignore-missing-imports --strict gas_station_event_indexer.py
