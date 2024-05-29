@@ -1,6 +1,6 @@
 asyncio>=3.4.3
 near-lake-framework>=0.0.8
-requests>=2.31.0
+requests>=2.32.0
 toml>=0.10.2
 
 black>=24.4.0
