@@ -1,3 +1,7 @@
+include .env
+
+export $(shell sed 's/=.*//' .env)
+
 # Configuration
 VENV_NAME ?= .venv
 PYTHON := $(VENV_NAME)/bin/python3
