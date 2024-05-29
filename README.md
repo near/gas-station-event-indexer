@@ -4,5 +4,5 @@ Picks up events emitted from the gas station contract used for generating signed
 # Run
 1. ensure you have https://github.com/near/multichain-relayer-server running on localhost:3030
 2. `make install` create virtual environment and install `requirements.txt`
-2. update the config.toml with the appropriate values
-3. `make run` runs the `gas_station_event_indexer.py` script
+3. update the config.toml with the appropriate values
+4. `make run` runs the `gas_station_event_indexer.py` script

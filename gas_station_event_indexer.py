@@ -10,7 +10,7 @@ from typing import Optional, Any
 import requests
 import toml
 from dataclasses_json import DataClassJsonMixin
-from near_lake_framework import near_primitives, LakeConfig, streamer
+from near_lake_framework import near_primitives, LakeConfig, streamer, Network
 
 REQUEST_TIMEOUT = 10
 ParsedLog = dict[str, Any]
@@ -50,32 +50,6 @@ class EventData(DataClassJsonMixin):
                 print(f"Response from {url}: {response.text}")
         except requests.RequestException as e:
             print(f"HTTP Request failed: {str(e)}")
-
-
-class Network(Enum):
-    """
-    Representing Near Lake Framework networks.
-    TODO - this Enum actually belongs in the `near_lake_framework.enums` module.
-    """
-
-    MAINNET = "mainnet"
-    TESTNET = "testnet"
-
-    @staticmethod
-    def from_string(value: str) -> Network:
-        try:
-            return Network(value.lower())
-        except ValueError as err:
-            valid_values = [v.value for v in Network]
-            raise ValueError(
-                f"Unknown network: {value}. Valid values are: {valid_values}"
-            ) from err
-
-    def __str__(self) -> str:
-        return self.value
-
-    def __repr__(self) -> str:
-        return self.value
 
 
 @dataclass
@@ -126,7 +100,7 @@ def fetch_latest_block(
     )
 
     # Parse the JSON response to get the latest final block height
-    latest_final_block = response.json()["result"]["header"]["height"]
+    latest_final_block: int = response.json()["result"]["header"]["height"]
 
     return latest_final_block
 
@@ -197,7 +171,7 @@ def process_log(log: str, receipt: near_primitives.Receipt) -> bool:
 def process_receipt_if_gas_station_contract(
     receipt: near_primitives.Receipt, parsed_log: ParsedLog
 ) -> bool:
-    if not receipt.receiver_id.endswith(config.contract_id):
+    if not receipt.receiver_id.endswith(CONFIG.contract_id):
         return False
 
     try:
@@ -227,16 +201,15 @@ async def handle_streamer_message(
 
 async def main() -> None:
     # These Fields must be set!
-    latest_final_block = fetch_latest_block(network=config.network)
+    latest_final_block = fetch_latest_block(network=CONFIG.network)
     lake_config = LakeConfig(
-        s3_bucket_name=f"near-lake-data-{config.network}",
-        s3_region_name="eu-central-1",
+        network=CONFIG.network,
         start_block_height=latest_final_block,
         # These Fields must be set!
         aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
         aws_secret_key=os.environ["AWS_SECRET_ACCESS_KEY"],
     )
-    print(f"Latest final block: {latest_final_block} on network: {config.network}")
+    print(f"Latest final block: {latest_final_block} on network: {CONFIG.network}")
 
     _stream_handle, streamer_messages_queue = streamer(lake_config)
     while True:
@@ -244,7 +217,8 @@ async def main() -> None:
         await handle_streamer_message(streamer_message)
 
 
+CONFIG = Config.from_toml()
+
 if __name__ == "__main__":
-    config = Config.from_toml()
     loop = asyncio.new_event_loop()
     loop.run_until_complete(main())
