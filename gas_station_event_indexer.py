@@ -4,7 +4,6 @@ import asyncio
 import json
 import os
 from dataclasses import dataclass, fields
-from enum import Enum
 from typing import Optional, Any
 
 import requests
