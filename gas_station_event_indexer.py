@@ -200,12 +200,11 @@ async def handle_streamer_message(
 
 
 async def main() -> None:
-    # These Fields must be set!
     latest_final_block = fetch_latest_block(network=CONFIG.network)
     lake_config = LakeConfig(
         network=CONFIG.network,
         start_block_height=latest_final_block,
-        # These Fields must be set!
+        # These fields must be set!
         aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
         aws_secret_key=os.environ["AWS_SECRET_ACCESS_KEY"],
     )
