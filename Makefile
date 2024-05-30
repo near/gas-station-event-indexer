@@ -29,6 +29,10 @@ clean:
 run:
 	@$(PYTHON) gas_station_event_indexer.py
 
+## check: Format code, lint and type-check
+check:
+	black ./ && pylint *.py && mypy --strict *.py
+
 help:
 	@echo "Makefile for Python project with venv"
 	@echo
