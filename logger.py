@@ -29,8 +29,8 @@ class IgnoreFilter(logging.Filter):
         return self.ignored_message
 
 
-def set_logger(name: str) -> logging.Logger:
-    logging.basicConfig(level=logging.INFO)
+def set_logger(name: str, level: int | str) -> logging.Logger:
+    logging.basicConfig(level=level)
     logging.getLogger("near_lake_framework").setLevel(logging.INFO)
     missing_shard_filter = IgnoreFilter("doesn't exist")
     logging.getLogger().addFilter(missing_shard_filter)

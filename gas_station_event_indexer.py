@@ -20,10 +20,10 @@ from near_lake_framework import (
 from logger import set_logger
 
 REQUEST_TIMEOUT = 10
+LOG_LEVEL = "info"
+
+logging = set_logger(__name__, LOG_LEVEL)
 ParsedLog = dict[str, Any]
-
-logging = set_logger(__name__)
-
 
 @dataclass
 class EventData(DataClassJsonMixin):
