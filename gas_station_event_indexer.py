@@ -9,7 +9,13 @@ from typing import Optional, Any
 import requests
 import toml
 from dataclasses_json import DataClassJsonMixin
-from near_lake_framework import near_primitives, LakeConfig, streamer, Network
+from near_lake_framework import (
+    near_primitives,
+    LakeConfig,
+    streamer,
+    Network,
+    utils as nlf_util,
+)
 
 REQUEST_TIMEOUT = 10
 ParsedLog = dict[str, Any]
@@ -70,38 +76,6 @@ class Config:
 
         config_dict["network"] = Network.from_string(config_dict["network"])
         return Config(**config_dict)
-
-
-def fetch_latest_block(
-    network: Network = Network.MAINNET,
-) -> near_primitives.BlockHeight:
-    """
-    Define the RPC endpoint for the NEAR network
-    """
-    url = f"https://rpc.{network}.near.org"
-
-    # Define the payload for fetching the latest block
-    payload = json.dumps(
-        {
-            "jsonrpc": "2.0",
-            "id": "dontcare",
-            "method": "block",
-            "params": {"finality": "final"},
-        }
-    )
-
-    # Define the headers for the HTTP request
-    headers = {"Content-Type": "application/json"}
-
-    # Send the HTTP request to the NEAR RPC endpoint
-    response = requests.request(
-        "POST", url, headers=headers, data=payload, timeout=REQUEST_TIMEOUT
-    )
-
-    # Parse the JSON response to get the latest final block height
-    latest_final_block: int = response.json()["result"]["header"]["height"]
-
-    return latest_final_block
 
 
 # Event format json example:
@@ -199,7 +173,7 @@ async def handle_streamer_message(
 
 
 async def main() -> None:
-    latest_final_block = fetch_latest_block(network=CONFIG.network)
+    latest_final_block = nlf_util.fetch_latest_block(network=CONFIG.network)
     lake_config = LakeConfig(
         network=CONFIG.network,
         start_block_height=latest_final_block,
