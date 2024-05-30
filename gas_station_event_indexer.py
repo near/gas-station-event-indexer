@@ -25,6 +25,7 @@ LOG_LEVEL = "info"
 logging = set_logger(__name__, LOG_LEVEL)
 ParsedLog = dict[str, Any]
 
+
 @dataclass
 class EventData(DataClassJsonMixin):
     """
