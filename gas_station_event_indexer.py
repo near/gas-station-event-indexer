@@ -17,8 +17,12 @@ from near_lake_framework import (
     utils as nlf_util,
 )
 
+from logger import set_logger
+
 REQUEST_TIMEOUT = 10
 ParsedLog = dict[str, Any]
+
+logging = set_logger(__name__)
 
 
 @dataclass
@@ -49,12 +53,14 @@ class EventData(DataClassJsonMixin):
         url = "localhost:3030/send_funding_and_user_signed_txns"
         try:
             response = requests.post(url, json=payload, timeout=REQUEST_TIMEOUT)
-            if response.status_code not in {200, 201}:
-                print(f"Error: calling {url}: {response.text}")
+            message = f"{url}: {response.text}"
+            if response.status_code in {200, 201}:
+                logging.info("Response from %s", message)
             else:
-                print(f"Response from {url}: {response.text}")
+                logging.error("Error: calling %s", message)
+
         except requests.RequestException as e:
-            print(f"HTTP Request failed: {str(e)}")
+            logging.error("HTTP Request failed: %s", {str(e)})
 
 
 @dataclass
@@ -104,9 +110,8 @@ def extract_relevant_log(
     try:
         parsed_log: ParsedLog = json.loads(log[len(log_key) :])
     except json.JSONDecodeError:
-        print(
-            f"Receipt ID: `{receipt_id}`\n"
-            f"Error during parsing logs from JSON string to dict"
+        logging.error(
+            "Receipt ID: %s\nError parsing logs from JSON string to dict", receipt_id
         )
         return None
 
@@ -137,7 +142,7 @@ def process_log(log: str, receipt: near_primitives.Receipt) -> bool:
     if parsed_log is None:
         return False
 
-    print(json.dumps(parsed_log, indent=4))
+    logging.info("processed log: %s", json.dumps(parsed_log, indent=4))
     return process_receipt_if_gas_station_contract(receipt, parsed_log)
 
 
@@ -150,17 +155,17 @@ def process_receipt_if_gas_station_contract(
     try:
         event_data = EventData.from_dict(parsed_log["data"])
         if not event_data.validate():
-            print(f"Error: Invalid event data: {event_data}")
+            logging.error("Invalid event data: %s", event_data)
             return False
 
-        print(json.dumps(event_data, indent=4))
+        logging.debug(json.dumps(event_data, indent=4))
         event_data.send_to_service()
         return True
 
     except json.JSONDecodeError:
-        print(
-            f"Receipt ID: `{receipt.receipt_id}`\n"
-            "Error during parsing event data from JSON string to dict"
+        logging.error(
+            "Receipt ID: %s\nError parsing logs from JSON string to dict",
+            receipt.receipt_id,
         )
         return False
 
@@ -181,7 +186,9 @@ async def main() -> None:
         aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
         aws_secret_key=os.environ["AWS_SECRET_ACCESS_KEY"],
     )
-    print(f"Latest final block: {latest_final_block} on network: {CONFIG.network}")
+    logging.info(
+        "Latest final block: %s on network: %s", latest_final_block, CONFIG.network.name
+    )
 
     _stream_handle, streamer_messages_queue = streamer(lake_config)
     while True:
