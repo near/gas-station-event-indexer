@@ -31,7 +31,7 @@ class EventData(DataClassJsonMixin):
     """
     {
       "foreign_chain_id": "97",
-      "sender_local_address": "hatchet.testnet",
+      "created_by_account_id": "hatchet.testnet",
       "signed_transactions": [
         "f862037882520894c5acb93d901fb260359cd1e982998236cfac65e0834ce7808002a02dfe84af26b45fec8704a6542e828428fcce018a4e266e19e087a55f1f73fff8a06cc72dc5ecc66c84e3b4f02513961235fff5f463ac68fd00f5072a6f64bfe4cc",
         "f85f8078825208940505050505050505050505050505050505050505648003a033d5ef8c991ec82b9a6b38b7f7ca91ba34ec814c9eec1e2a42e4fc4fc9c443f7a0675e56a82d9464d1cba7ef62d7b9d6e1a4b87328c610b28dfc4b81815f8969d0"
@@ -40,7 +40,7 @@ class EventData(DataClassJsonMixin):
     """
 
     foreign_chain_id: str
-    sender_local_address: str
+    created_by_account_id: str
     signed_transactions: list[str]
 
     def validate(self) -> bool:
@@ -92,7 +92,7 @@ class Config:
 #     "event": "transaction_sequence_signed",
 #     "data": {
 #         "foreign_chain_id": "97",
-#         "sender_local_address": "hatchet.testnet",
+#         "created_by_account_id": "hatchet.testnet",
 #         "signed_transactions": [
 #             "f862037882520894c5acb93d901fb260359cd1e982998236cfac65e0834ce7808002a02dfe84af26b45fec8704a6542e828428fcce018a4e266e19e087a55f1f73fff8a06cc72dc5ecc66c84e3b4f02513961235fff5f463ac68fd00f5072a6f64bfe4cc",
 #             "f85f8078825208940505050505050505050505050505050505050505648003a033d5ef8c991ec82b9a6b38b7f7ca91ba34ec814c9eec1e2a42e4fc4fc9c443f7a0675e56a82d9464d1cba7ef62d7b9d6e1a4b87328c610b28dfc4b81815f8969d0"
@@ -143,7 +143,7 @@ def process_log(log: str, receipt: near_primitives.Receipt) -> bool:
     if parsed_log is None:
         return False
 
-    logging.info("processed log: %s", json.dumps(parsed_log, indent=4))
+    logging.info("received log: %s", json.dumps(parsed_log, indent=4))
     return process_receipt_if_gas_station_contract(receipt, parsed_log)
 
 
