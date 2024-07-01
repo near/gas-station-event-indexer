@@ -30,6 +30,7 @@ ParsedLog = dict[str, Any]
 class EventData(DataClassJsonMixin):
     """
     {
+      "id": "31",
       "foreign_chain_id": "97",
       "created_by_account_id": "hatchet.testnet",
       "signed_transactions": [
@@ -39,6 +40,7 @@ class EventData(DataClassJsonMixin):
     }
     """
 
+    id: str
     foreign_chain_id: str
     created_by_account_id: str
     signed_transactions: list[str]
@@ -91,6 +93,7 @@ class Config:
 #     "version": "0.1.0",
 #     "event": "transaction_sequence_signed",
 #     "data": {
+#         "id": "31",
 #         "foreign_chain_id": "97",
 #         "created_by_account_id": "hatchet.testnet",
 #         "signed_transactions": [
