@@ -11,4 +11,4 @@ Picks up events emitted from the gas station contract used for generating signed
 ```shell
 cp .env.example .env
 ```
-containing AWS credentials for reading from [Near Lake](https://docs.near.org/tools/realtime#near-lake-indexer).
+containing AWS credentials for reading from [Near Lake](https://docs.near.org/concepts/advanced/near-lake-framework).
